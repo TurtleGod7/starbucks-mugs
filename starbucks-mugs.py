@@ -95,13 +95,18 @@ def modify_and_encode_svg(svg_path, new_color):
 
 
 def fetch_complete_list():
-    pages = 36
+    # Web scraper for all series
+    webpages = {
+        'https://starbucks-mugs.com/category/been-there/' : 38,
+        'https://starbucks-mugs.com/category/discovery/' : 3,
+        'https://starbucks-mugs.com/category/you-are-here/' : 53
+    }
     all_titles = []
-    base_url = 'https://starbucks-mugs.com/category/been-there/'
-    for page in range(1, pages + 1):
-        url = base_url if page == 1 else f'{base_url}page/{page}/'
-        titles = fetch_url(url)
-        all_titles.extend(titles)
+    for webpage, page in webpages.items():
+        for page in range(1, page + 1):
+            url = webpage if page == 1 else f'{webpage}page/{page}/'
+            titles = fetch_url(url)
+            all_titles.extend(titles)
     return all_titles
 
 def fetch_url(url):
@@ -111,14 +116,29 @@ def fetch_url(url):
         raise Exception("Failed to fetch page")
     soup = BeautifulSoup(resp.text, 'html.parser')
     for entry in soup.find_all(class_='mug'):
-        title = entry.find_all(class_='entry-title')
+        title = entry.find_all(class_='entry-title post-title')
         imgs = entry.find_all('img')
         ee = entry.find_all(class_='entry')
         if title is None or len(title) == 0:
             print("skip entry without title", entry)
             continue
+        
+        try: # Cleans title to enable owned_mugs.txt to reflect in the final_data.json
+            new_title = title[0].text.replace("– ", "")
+        except Exception as e:
+            print("Failed to clean Title Key", new_title)
+            print(e)
+        
+        try: # Cleans the key to be able to recieve latlong from API (needs more work)
+            new_key = title[0].text.split("–")[1]
+            new_key = new_key.strip()
+        except Exception as e:
+            print("Failed to clean Locational Key", new_key)
+            print(e)
+        
         row = {
-            'title': title[0].text,
+            'title': new_title,
+            'locationkey' : new_key,
             'url': entry.find('a')['href'],
             'img': imgs[0]['src'],
             'description': ee[0].text
@@ -129,6 +149,8 @@ def fetch_url(url):
 def read_owned():
     with open('./data/owned_mugs.txt', 'r') as file:
         owned = file.readlines()
+    for str in owned:
+        str.replace("– ", "")
     return [line.strip() for line in owned]
 
 def read_latlong_overrides():
@@ -184,32 +206,43 @@ def prepare(previous_data_path, output_file_path):
         updated = {}
         for k, v in data.items():
             print(k)
-            try:
-                new_key = k.split("–")[1]
-                new_key = new_key.strip()
-                updated[new_key] = v
-            except Exception as e:
-                print("Failed to clean key", k)
-                print(e)
+            if "– " in k:
+                try:
+                    new_key = k.replace("– ", "")
+                    updated[new_key] = v
+                except Exception as e:
+                    print("Failed to clean key", k)
+                    print(e)
+            else:
+                try:
+                    new_key = k.replace("â€“ ", "")
+                    updated[new_key] = v
+                except Exception as e:
+                    print("Failed to clean key Attempt 2", k)
+                    print(e)
         return updated
 
     def get_addresses(data):
-        for k in data.keys():
+        for k, entry in data.items():
+            location_key = entry.get('locationkey')
             try:
-                if k in latlong_overrides:
-                    data[k]['latlong'] = latlong_overrides[k]
-                    print("using override for", k)
+                if location_key in latlong_overrides:
+                    entry['latlong'] = latlong_overrides[location_key]
+                    print("using override for", location_key)
                 else:
-                    data[k]['latlong'] = get_latlong(k, GOOGLE_MAPS_API_KEY)
+                    entry['latlong'] = get_latlong(location_key, GOOGLE_MAPS_API_KEY)
             except Exception as e:
-                print(f"Failed to get latlong for {k}")
+                print(f"Failed to get latlong for {location_key}")
                 print(e)
         return data
-
+    
+    # Cleaning normal keys for new naming scheme
     data = insert_owned_mugs(data)
     data = clean_keys(data)
-    data = get_addresses(data)
     data = update(previous_data, data)
+    # Gets latlng using the previous name which was used for this
+    data = get_addresses(data)
+    
     with open(output_file_path, 'w') as file:
         json.dump(data, file, indent=4)
 

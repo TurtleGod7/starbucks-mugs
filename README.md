@@ -1,19 +1,18 @@
 # starbucks-mugs
 
-I got tired of trying to track my starbucks mugs I collect, so I scraped
-https://starbucks-mugs.com/category/been-there/ and put a little website up to
-track it. 
+Hey so I was looking for a database to save the cups I have collected from Starbucks
+and came across this webscraper and website by @andorsk. (_thanks btw_)
 
-Feel free to fork this into your own thing and just update the `owned_mugs.txt`
-for changing the markers.
+Please do feel free to use my edits and update the `owned_mugs.txt` for your own use.
+I do have some examples for data handling.
 
-Thank you to starbucks-mugs.com for providing the data. Uses GoogleAPI for geocoding.
+Thank you to starbucks-mugs.com for providing the data and @andorsk for the base code. Uses GoogleAPI for geocoding.
+(sorry I stole your README and edited it)
 
-## Rules I Use For Collection 
+Make sure to check my commit description for more info on what exactly I changed.
 
-- [ ] Must be bought at a Starbucks. i.e no ordering online. 
-- [ ] Must have visited the location and outside of the airport of the location. i.e layovers don't count. 
-- [ ] You MAY ask a friend, not a stranger, to pick it up for you, as long as both of you follow the previous two criteria. They must bring it to you personally. 
+Note: I haven't been able to test the frontend due to it requiring the enviorment variable
+and I ain't paying money for this.
 
 ## Environment Variables
 
@@ -28,7 +27,8 @@ Thank you to starbucks-mugs.com for providing the data. Uses GoogleAPI for geoco
 
 ## Contributing
 
-Want to contribute? Please do! This was for personal use. Feel free to fork the code. 
+Want to contribute? Sure! This was a small issue I had and wanted to put my skills to the test. 
+Feel free to fork the code. 
 
 ## How to create for yourself? 
 
