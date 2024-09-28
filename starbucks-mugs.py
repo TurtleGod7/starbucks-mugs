@@ -3,15 +3,17 @@ import requests
 from bs4 import BeautifulSoup
 import geocoder
 import json
-import time
+from time import sleep
 import os
 import json
 import folium
 import base64
 import argparse
 import copy
+from re import sub
+from re import search
 
-GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
+USERAGENTEMAIL = os.environ.get("")
 
 def modify_and_encode_svg(svg_path, new_color):
     with open(svg_path, 'r') as file:
@@ -54,7 +56,7 @@ def visualize(data_path, output_path="index.html"):
                 tooltip=tooltip
         ).add_to(m)
 
-    footer_html = f"<div style='position: fixed; bottom: 10px; height: 20px; background-color: white; z-index:9999; font-size:16px;'>Credit to <a href='https://starbucks-mugs.com/category/been-there/'>starbucks-mugs.com</a> for the initial seed data. See scripts at my <a href='https://github.com/andorsk/starbucks-mugs.git'>Github</a></div>"
+    footer_html = f"<div style='position: fixed; bottom: 10px; height: 20px; background-color: white; z-index:9999; font-size:16px;'>Credit to <a href='https://starbucks-mugs.com/category/been-there/'>starbucks-mugs.com</a> for the initial seed data. See scripts at my <a href='https://github.com/TurtleGod7/starbucks-mugs'>Github</a></div>"
     legend_html = "<div style='position: fixed; top: 40px; left: 50px;  padding: 10px 10px 10px 10px;  height: 80px; background-color: white; z-index:9999; font-size:16px;'>Legend<br/><svg height='10' width='10'><circle cx='5' cy='5' r='5' fill='green' /></svg> Owned &nbsp;<br/><svg height='10' width='10'><circle cx='5' cy='5' r='5' fill='orange' /></svg> Not Owned</div>"
 
     header_html = f"<div style='position: fixed; top: 10px; left: 50px; width: 300px; height: 20px; background-color: white; z-index:9999; font-size:16px;'><b>Owned: {owned_count} / Total: {total_count}</b></div>"
@@ -129,8 +131,11 @@ def fetch_url(url):
             print("Failed to clean Title Key", new_title)
             print(e)
         
-        try: # Cleans the key to be able to recieve latlong from API (needs more work)
+        try: # Cleans the key to be able to recieve latlong from API
             new_key = title[0].text.split("–")[1]
+            check = search(r'\(([^)]+)\)', new_key)
+            if check: new_key = check.group(1)
+            new_key = sub(r'\d+\s*\w*', '', new_key)
             new_key = new_key.strip()
         except Exception as e:
             print("Failed to clean Locational Key", new_key)
@@ -158,6 +163,7 @@ def read_latlong_overrides():
         overrides = json.load(file)
         return overrides
 
+'''Original Code:
 def get_latlong(address, api_key=''):
     base_url = 'https://maps.googleapis.com/maps/api/geocode/json'
     endpoint = f"{base_url}address={address}&key={api_key}"
@@ -173,7 +179,27 @@ def get_latlong(address, api_key=''):
         raise Exception(f"Failed to fetch latlong for {address}. Status: {data['status']}")
     lat = data['results'][0]['geometry']['location']['lat']
     lng = data['results'][0]['geometry']['location']['lng']
-    time.sleep(1) # for rate limiting
+    sleep(1) # for rate limiting
+    return [lat, lng]
+'''
+
+def get_latlong(address):
+    base_url = 'https://nominatim.openstreetmap.org/search'
+    headers = {'User-Agent': 'starbucks-mugs/0.2 ('+ USERAGENTEMAIL +')'} # Required by OSM in their terms of use
+    params = {'q': address, 'format': 'json', 'limit': 1}
+    endpoint = f"{base_url}q={params}"
+    print("trying to fetch latlong for", endpoint)
+    resp = requests.get(base_url, params=params, headers=headers)
+    if resp.status_code != 200:
+        print(f"Failed to fetch latlong for {address}. Status code: {resp.status_code}")
+        raise Exception(f"Failed to fetch latlong for {address}. Status code: {resp.status_code}")
+    data = resp.json()
+    if not data:
+        print(f"Failed to fetch latlong for {address}.")
+        raise Exception(f"Failed to fetch latlong for {address}.")
+    lat = float(data[0]['lat'])
+    lng = float(data[0]['lon'])
+    sleep(1) # for rate limiting
     return [lat, lng]
 
 def prepare(previous_data_path, output_file_path):
@@ -211,26 +237,47 @@ def prepare(previous_data_path, output_file_path):
                     new_key = k.replace("– ", "")
                     updated[new_key] = v
                 except Exception as e:
-                    print("Failed to clean key", k)
+                    print("Failed to clean key 1", k)
                     print(e)
             else:
                 try:
                     new_key = k.replace("â€“ ", "")
                     updated[new_key] = v
                 except Exception as e:
-                    print("Failed to clean key Attempt 2", k)
+                    print("Failed to clean key 2", k)
                     print(e)
         return updated
 
-    def get_addresses(data):
-        for k, entry in data.items():
+    def get_addresses(data, cache=[]):
+        for key, entry in data.items():
             location_key = entry.get('locationkey')
+            if location_key == "":
+                for i in range(1):
+                    try:
+                        location_key = entry["title"].text.split("–")[1]
+                        check = search(r'\(([^)]+)\)', location_key)
+                        if check: location_key = check.group(1)
+                        location_key = sub(r'\d+\s*\w*', '', location_key)
+                        location_key = location_key.strip()
+                    except:
+                        entry['title'] = key
             try:
                 if location_key in latlong_overrides:
                     entry['latlong'] = latlong_overrides[location_key]
                     print("using override for", location_key)
                 else:
-                    entry['latlong'] = get_latlong(location_key, GOOGLE_MAPS_API_KEY)
+                    if location_key in cache: # Code that checks cache to reducing querying the api
+                        for k in data.items:
+                            if location_key == k['locationkey']:
+                                try:
+                                    entry['latlong'] = k['latlong']
+                                except Exception as e:
+                                    print(f"Couldn't retrieve cached data because of Exception: {e}\nReverting back to querying the API")
+                                    break
+                    else:
+                        cache.append(location_key)
+                    
+                    entry['latlong'] = get_latlong(location_key)
             except Exception as e:
                 print(f"Failed to get latlong for {location_key}")
                 print(e)
@@ -239,9 +286,10 @@ def prepare(previous_data_path, output_file_path):
     # Cleaning normal keys for new naming scheme
     data = insert_owned_mugs(data)
     data = clean_keys(data)
-    data = update(previous_data, data)
-    # Gets latlng using the previous name which was used for this
     data = get_addresses(data)
+    data = update(previous_data, data)
+    # Gets latlong using the previous name which was used for this
+    
     
     with open(output_file_path, 'w') as file:
         json.dump(data, file, indent=4)

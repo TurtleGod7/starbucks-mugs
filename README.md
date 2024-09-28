@@ -11,14 +11,15 @@ Thank you to starbucks-mugs.com for providing the data and @andorsk for the base
 
 Make sure to check my commit description for more info on what exactly I changed.
 
-Note: I haven't been able to test the frontend due to it requiring the enviorment variable
-and I ain't paying money for this.
+Note: The latest update has been pushed due to my lack of time so not everything has been able to have been fully tested.
+
+**!!Also, make sure you follow Open Street Map's terms of service before running this program!!**
 
 ## Environment Variables
 
-|                         |                                                    |
-|-------------------------|----------------------------------------------------|
-| **GOOGLE_MAPS_API_KEY** | Set to Google Maps API Key. Required for GeoCoding |
+|                    |                                                       |
+|--------------------|-------------------------------------------------------|
+| **USERAGENTEMAIL** | Email required for User Agent. Required for GeoCoding |
 
 ## Usage
 
@@ -32,4 +33,4 @@ Feel free to fork the code.
 
 ## How to create for yourself? 
 
-Just fork this repo and change the `data/owned_mugs.txt`, add set `GOOGLE_MAPS_API_KEY` as a secret in your repo settings, and you should be good to go
+Just fork this repo and change the `data/owned_mugs.txt`, add set `USERAGENTEMAIL` as a secret in your repo settings, and you should be good to go
