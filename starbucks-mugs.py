@@ -25,8 +25,8 @@ def modify_and_encode_svg(svg_path, new_color):
     return data_uri
 
 def visualize(data_path, output_path="index.html"):
-    f = open(data_path, 'r')
-    data = json.load(f)
+    with open(data_path, 'r') as f:
+        data = json.load(f)
     m = folium.Map(location=[34.0549076, -118.242643], zoom_start=4)
     owned_count = 0
     total_count = len(data.keys())
@@ -35,7 +35,7 @@ def visualize(data_path, output_path="index.html"):
         tooltip = c
         if d.get('owned') is True:
             owned_count += 1
-        if 'latlong' not in d:
+        if not d.get('latlong') or len(d.get('latlong')) != 2 or not all(isinstance(coord, (int, float)) for coord in d.get('latlong')):
             print("can't find latlong")
             continue
 
@@ -56,7 +56,7 @@ def visualize(data_path, output_path="index.html"):
                 tooltip=tooltip
         ).add_to(m)
 
-    footer_html = f"<div style='position: fixed; bottom: 10px; height: 20px; background-color: white; z-index:9999; font-size:16px;'>Credit to <a href='https://starbucks-mugs.com/category/been-there/'>starbucks-mugs.com</a> for the initial seed data. See scripts at my <a href='https://github.com/TurtleGod7/starbucks-mugs'>Github</a></div>"
+    footer_html = f"<div style='position: fixed; bottom: 10px; height: 20px; background-color: white; z-index:9999; font-size:16px;'>Credit to <a href='https://starbucks-mugs.com/'>starbucks-mugs.com</a> for the initial seed data. See my goofy code at <a href='https://github.com/TurtleGod7/starbucks-mugs'>Github</a> and thatnks to <a href='https://github.com/andorsk/starbucks-mugs'>Andorsk</a> for the code!</div>"
     legend_html = "<div style='position: fixed; top: 40px; left: 50px;  padding: 10px 10px 10px 10px;  height: 80px; background-color: white; z-index:9999; font-size:16px;'>Legend<br/><svg height='10' width='10'><circle cx='5' cy='5' r='5' fill='green' /></svg> Owned &nbsp;<br/><svg height='10' width='10'><circle cx='5' cy='5' r='5' fill='orange' /></svg> Not Owned</div>"
 
     header_html = f"<div style='position: fixed; top: 10px; left: 50px; width: 300px; height: 20px; background-color: white; z-index:9999; font-size:16px;'><b>Owned: {owned_count} / Total: {total_count}</b></div>"
