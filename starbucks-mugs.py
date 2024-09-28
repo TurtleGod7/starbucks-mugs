@@ -12,6 +12,7 @@ import argparse
 import copy
 from re import sub
 from re import search
+from random import random
 
 USERAGENTEMAIL = os.environ.get("")
 
@@ -56,7 +57,7 @@ def visualize(data_path, output_path="index.html"):
                 tooltip=tooltip
         ).add_to(m)
 
-    footer_html = f"<div style='position: fixed; bottom: 10px; height: 20px; background-color: white; z-index:9999; font-size:16px;'>Credit to <a href='https://starbucks-mugs.com/'>starbucks-mugs.com</a> for the initial seed data. See my goofy code at <a href='https://github.com/TurtleGod7/starbucks-mugs'>Github</a> and thatnks to <a href='https://github.com/andorsk/starbucks-mugs'>Andorsk</a> for the code!</div>"
+    footer_html = f"<div style='position: fixed; bottom: 10px; height: 20px; background-color: white; z-index:9999; font-size:16px;'>Credit to <a href='https://starbucks-mugs.com/'>starbucks-mugs.com</a> for the initial seed data. See my goofy code at <a href='https://github.com/TurtleGod7/starbucks-mugs'>Github</a> and thanks to <a href='https://github.com/andorsk/starbucks-mugs'>Andorsk</a> for the code!</div>"
     legend_html = "<div style='position: fixed; top: 40px; left: 50px;  padding: 10px 10px 10px 10px;  height: 80px; background-color: white; z-index:9999; font-size:16px;'>Legend<br/><svg height='10' width='10'><circle cx='5' cy='5' r='5' fill='green' /></svg> Owned &nbsp;<br/><svg height='10' width='10'><circle cx='5' cy='5' r='5' fill='orange' /></svg> Not Owned</div>"
 
     header_html = f"<div style='position: fixed; top: 10px; left: 50px; width: 300px; height: 20px; background-color: white; z-index:9999; font-size:16px;'><b>Owned: {owned_count} / Total: {total_count}</b></div>"
@@ -270,7 +271,7 @@ def prepare(previous_data_path, output_file_path):
                         for k in data.items:
                             if location_key == k['locationkey']:
                                 try:
-                                    entry['latlong'] = k['latlong']
+                                    entry['latlong'] = (k['latlong'][0] + random.uniform(-0.00001, 0.000001), k['latlong'][1] + random.uniform(-0.000001, 0.000001))
                                 except Exception as e:
                                     print(f"Couldn't retrieve cached data because of Exception: {e}\nReverting back to querying the API")
                                     break
