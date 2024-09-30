@@ -31,13 +31,15 @@ def visualize(data_path, output_path="index.html"):
     m = folium.Map(location=[34.0549076, -118.242643], zoom_start=4)
     owned_count = 0
     total_count = len(data.keys())
+    failed_count = 0
     print("got total count", total_count)
     for c, d in data.items():
         tooltip = c
         if d.get('owned') is True:
             owned_count += 1
         if not d.get('latlong') or len(d.get('latlong')) != 2 or not all(isinstance(coord, (int, float)) for coord in d.get('latlong')):
-            print("can't find latlong")
+            failed_count += 1
+            print(f"can't find latlong of {c}\n Cups failed:{failed_count}")
             continue
 
         imgPath = d.get('img', "")
@@ -164,26 +166,6 @@ def read_latlong_overrides():
         overrides = json.load(file)
         return overrides
 
-'''Original Code:
-def get_latlong(address, api_key=''):
-    base_url = 'https://maps.googleapis.com/maps/api/geocode/json'
-    endpoint = f"{base_url}address={address}&key={api_key}"
-    print("trying to fetch latlong for", endpoint)
-    params = {'sensor': 'false', 'address': address, 'key': api_key}
-    resp = requests.get(base_url, params=params)
-    if resp.status_code != 200:
-        print(f"Failed to fetch latlong for {address}. Status code: {resp.status_code}")
-        raise Exception(f"Failed to fetch latlong for {address}. Status code: {resp.status_code}")
-    data = resp.json()
-    if data['status'] != 'OK':
-        print(f"Failed to fetch latlong for {address}. Status: {data['status']}")
-        raise Exception(f"Failed to fetch latlong for {address}. Status: {data['status']}")
-    lat = data['results'][0]['geometry']['location']['lat']
-    lng = data['results'][0]['geometry']['location']['lng']
-    sleep(1) # for rate limiting
-    return [lat, lng]
-'''
-
 def get_latlong(address):
     base_url = 'https://nominatim.openstreetmap.org/search'
     headers = {'User-Agent': 'starbucks-mugs/0.2 ('+ USERAGENTEMAIL +')'} # Required by OSM in their terms of use
@@ -271,7 +253,7 @@ def prepare(previous_data_path, output_file_path):
                         for k in data.items:
                             if location_key == k['locationkey']:
                                 try:
-                                    entry['latlong'] = (k['latlong'][0] + random.uniform(-0.00001, 0.000001), k['latlong'][1] + random.uniform(-0.000001, 0.000001))
+                                    entry['latlong'] = (k['latlong'][0] + random.uniform(-0.00010, 0.000010), k['latlong'][1] + random.uniform(-0.000010, 0.000010))
                                 except Exception as e:
                                     print(f"Couldn't retrieve cached data because of Exception: {e}\nReverting back to querying the API")
                                     break
