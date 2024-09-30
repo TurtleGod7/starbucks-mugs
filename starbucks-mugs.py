@@ -32,6 +32,7 @@ def visualize(data_path, output_path="index.html"):
     owned_count = 0
     total_count = len(data.keys())
     failed_count = 0
+    broken_keys = {}
     print("got total count", total_count)
     for c, d in data.items():
         tooltip = c
@@ -40,6 +41,16 @@ def visualize(data_path, output_path="index.html"):
         if not d.get('latlong') or len(d.get('latlong')) != 2 or not all(isinstance(coord, (int, float)) for coord in d.get('latlong')):
             failed_count += 1
             print(f"can't find latlong of {c}\n Cups failed:{failed_count}")
+            try:
+                prepare(data_path,output_path,True,c) #First two inputs aren't needed for the code to work
+                failed_count -= 1
+            except:
+                print(f"retrevial of latlong again didn't work of {c}\nCups failed still is:{failed_count}")
+                rows = {
+                    'title' : d.get('title'),
+                    'locationkey' : d.get('locationkey')
+                }
+                broken_keys[c] = rows
             continue
 
         imgPath = d.get('img', "")
@@ -68,6 +79,8 @@ def visualize(data_path, output_path="index.html"):
     m.get_root().html.add_child(folium.Element(footer_html))
 
     m.save(output_path)
+    with open("data/nolatlong_data.json", "w") as f:
+        json.dump(broken_keys, f, indent=4)
 
 def read_json(file_path):
     with open(file_path, 'r') as file:
@@ -185,8 +198,11 @@ def get_latlong(address):
     sleep(1) # for rate limiting
     return [lat, lng]
 
-def prepare(previous_data_path, output_file_path):
+def prepare(previous_data_path, output_file_path, addlatlng=False, key=None):
 
+    if addlatlng == True: #Check Visualize Function
+        return get_addresses(key)
+    
     owned_mugs = read_owned()
     latlong_overrides = read_latlong_overrides()
     all_titles = fetch_complete_list()
@@ -288,7 +304,7 @@ if __name__ == "__main__":
 
     # Backup command
     backup_parser = subparsers.add_parser("backup", help="Backup old file")
-    backup_parser.add_argument("--input", default="final_data.json", help="Input file (default: final_data.json)")
+    backup_parser.add_argument("--input", default="data/final_data.json", help="Input file (default: final_data.json)")
     backup_parser.add_argument("--output", default="old_data.json", help="Output file (default: old_data.json)")
 
     # Prepare command
@@ -298,7 +314,7 @@ if __name__ == "__main__":
 
     # Visualize command
     visualize_parser = subparsers.add_parser("visualize", help="Visualize data")
-    visualize_parser.add_argument("--input", default="final_data.json", help="Input file (default: final_data.json)")
+    visualize_parser.add_argument("--input", default="data/final_data.json", help="Input file (default: data/final_data.json)")
     visualize_parser.add_argument("--output", default="index.html", help="Output file (default: index.html)")
 
     update_parser = subparsers.add_parser("update", help="update data")
