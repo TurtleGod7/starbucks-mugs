@@ -1,3 +1,4 @@
+'''little bro make sure you read folium docs before editing the marker stuff'''
 #!/usr/bin/env python3
 import requests
 from bs4 import BeautifulSoup
@@ -33,6 +34,7 @@ def visualize(data_path, output_path="index.html"):
     total_count = len(data.keys())
     failed_count = 0
     broken_keys = {}
+    location_dict = {}
     print("got total count", total_count)
     for c, d in data.items():
         tooltip = c
@@ -42,7 +44,7 @@ def visualize(data_path, output_path="index.html"):
             failed_count += 1
             print(f"can't find latlong of {c}\n Cups failed:{failed_count}")
             try:
-                prepare(data_path,output_path,True,c) #First two inputs aren't needed for the code to work
+                prepare(data_path,output_path,True,c) #First two inputs are needed for syntax
                 failed_count -= 1
             except:
                 print(f"retrevial of latlong again didn't work of {c}\nCups failed still is:{failed_count}")
@@ -51,15 +53,107 @@ def visualize(data_path, output_path="index.html"):
                     'locationkey' : d.get('locationkey')
                 }
                 broken_keys[c] = rows
-            continue
+                continue
+        latlong = tuple(d['latlong'])# Dictionary where latlong is key, important for multiple markers in one spot
+        if latlong not in location_dict:
+            location_dict[latlong] = []
+        location_dict[latlong].append({
+            "title" : c,
+            "img": d.get('img', ""),
+            "url": d.get('url', ""),
+            "description": d.get('description', ""),
+            "owned": d.get('owned', False)
+        })
+    
+    popup_scripts = ""
+    
+    for latlong, items in location_dict.items():
+        marker_id = f"marker_{hash(latlong)}"
 
-        imgPath = d.get('img', "")
+        if len(items) == 1:
+            # Single marker popup
+            item = items[0]
+            popup_html = f"""
+            <div>
+                <h4>{item['title']}</h4>
+                <img src="{item['img']}" width="200"><br>
+                <a href="{item['url']}">More Info</a><br>
+                <p>{item['description']}</p>
+            </div>
+            """
+        else:
+            # Multi-item popup with cycling function
+            popup_html = f"""
+            <div id="{marker_id}_popup">
+                <h4 id="{marker_id}_title"></h4>
+                <img id="{marker_id}_img" width="200"><br>
+                <a id="{marker_id}_link" href="">More Info</a><br>
+                <p id="{marker_id}_desc"></p>
+                <div style="display: flex; align-items: center;">
+                    <button onclick="prevItem('{marker_id}')" style="margin-right: 10px;">«</button>
+                    <span id="{marker_id}_page">1 / X</span>
+                    <button onclick="nextItem('{marker_id}')" style="margin-left: 10px;">»</button>
+            </div>
+            """
+            
+            # JavaScript logic to cycle through popups
+            popup_scripts += f"""
+            var {marker_id}_items = {json.dumps(items)};
+            var {marker_id}_index = 0;
+            
+            function nextItem(marker_id) {{
+                var items = window[marker_id + "_items"];
+                var index = window[marker_id + "_index"];
+                index = (index + 1) % items.length;
+                window[marker_id + "_index"] = index;
+                updatePopup(marker_id, index);
+            }}
+            function prevItem(marker_id) {{
+                var items = window[marker_id + "_items"];
+                var index = window[marker_id + "_index"];
+                index = (index - 1 + items.length) % items.length;
+                window[marker_id + "_index"] = index;
+                updatePopup(marker_id, index);
+            }}
+            function updatePopup(marker_id, index) {{
+                var items = window[marker_id + "_items"];
+                document.getElementById(marker_id + "_title").innerText = items[index].title;
+                document.getElementById(marker_id + "_img").src = items[index].img;
+                document.getElementById(marker_id + "_link").href = items[index].url;
+                document.getElementById(marker_id + "_desc").innerText = items[index].description;
+                document.getElementById(marker_id + "_page").innerText = (index + 1) + " / " + items.length;
+            }}
+            function initializePopup(marker_id) {{ updatePopup(marker_id, 0); }}
+            </script>
+            """
+
+        # Determine marker color
+        owned_statuses = [item["owned"] for item in items]
+        if all(owned_statuses):
+            color = "green"
+        elif any(owned_statuses):
+            color = "orange"
+        else:
+            color = "yellow"
+
+        icon_image = modify_and_encode_svg('./assets/icon.svg', color)
+        icon = folium.CustomIcon(icon_image, icon_size=(30, 30))
+
+        folium.Marker(
+            location=list(latlong),
+            popup=folium.Popup(popup_html, max_width=300),
+            icon=icon
+        ).add_to(m)
+
+        
+        '''imgPath = d.get('img', "")
         url = d.get('url', "")
         description = d.get('description', "")
         markerData = f'<img src="{imgPath}" width="200"><br><a href="{url}">Link</a><br>{description}'
         iframe = folium.IFrame(markerData, width=250, height=300)
         popup = folium.Popup(iframe, max_width=300)
-        color = 'green' if d['owned'] is True else 'orange'
+        
+        color = 'green' if d['owned'] is True else 'yellow' # allocating orange to have some of places at location
         icon_image = modify_and_encode_svg('./assets/icon.svg', color)
         icon = folium.CustomIcon(icon_image, icon_size=(30, 30))  # Adjust size as needed
         folium.Marker(
@@ -68,12 +162,20 @@ def visualize(data_path, output_path="index.html"):
                 icon=icon,
                 fill_opacity=0.6,
                 tooltip=tooltip
-        ).add_to(m)
+        ).add_to(m)'''
+    
 
     footer_html = f"<div style='position: fixed; bottom: 10px; height: 20px; background-color: white; z-index:9999; font-size:16px;'>Credit to <a href='https://starbucks-mugs.com/'>starbucks-mugs.com</a> for the initial seed data. See my goofy code at <a href='https://github.com/TurtleGod7/starbucks-mugs'>Github</a> and thanks to <a href='https://github.com/andorsk/starbucks-mugs'>Andorsk</a> for the code!</div>"
-    legend_html = "<div style='position: fixed; top: 40px; left: 50px;  padding: 10px 10px 10px 10px;  height: 80px; background-color: white; z-index:9999; font-size:16px;'>Legend<br/><svg height='10' width='10'><circle cx='5' cy='5' r='5' fill='green' /></svg> Owned &nbsp;<br/><svg height='10' width='10'><circle cx='5' cy='5' r='5' fill='orange' /></svg> Not Owned</div>"
-
+    legend_html = """
+    <div style='position: fixed; top: 40px; left: 50px;  padding: 10px 10px 10px 10px;  height: 80px; background-color: white; z-index:9999; font-size:16px;'>Legend<br/>
+        <svg height='10' width='10'><circle cx='5' cy='5' r='5' fill='green' /></svg> Owned &nbsp;<br/>
+        <svg height='10' width='10'><circle cx='5' cy='5' r='5' fill='orange' /></svg> Some Owned &nbsp;<br/>
+        <svg height='10' width='10'><circle cx='5' cy='5' r='5' fill='yellow' /></svg> Not Owned
+    </div>
+    """
     header_html = f"<div style='position: fixed; top: 10px; left: 50px; width: 300px; height: 20px; background-color: white; z-index:9999; font-size:16px;'><b>Owned: {owned_count} / Total: {total_count}</b></div>"
+    script_element = f"<script>{popup_scripts}</script>"
+    m.get_root().html.add_child(folium.Element(script_element))
     m.get_root().html.add_child(folium.Element(header_html))
     m.get_root().html.add_child(folium.Element(legend_html))
     m.get_root().html.add_child(folium.Element(footer_html))
@@ -269,7 +371,7 @@ def prepare(previous_data_path, output_file_path, addlatlng=False, key=None):
                         for k in data.items:
                             if location_key == k['locationkey']:
                                 try:
-                                    entry['latlong'] = (k['latlong'][0] + random.uniform(-0.00010, 0.000010), k['latlong'][1] + random.uniform(-0.000010, 0.000010))
+                                    entry['latlong'] = k['latlong']
                                 except Exception as e:
                                     print(f"Couldn't retrieve cached data because of Exception: {e}\nReverting back to querying the API")
                                     break
